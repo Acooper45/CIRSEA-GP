@@ -18,7 +18,7 @@ library(tidyverse)
 
 ```{r}
 rm(list = ls(all = TRUE))
-#setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 library(ggplot2) # Data visualization
 library(tidyr) # Tidy data management
 library(dplyr)
@@ -35,37 +35,38 @@ xgrid = seq(small,K,length.out=sizex)
 
 3
 
-f = function(h,x)
-{
-xnext = x + r*x*(1-x/K) - h
+f = function(h,x){
+  xnext = x + r*x*(1-x/K) - h
 }
-pi = function(h)
-{
-profit = a*h-b*h^2
+
+pi = function(h){
+  profit = a*h-b*h^2
 }
-Payoff = function(h,x,V)
-{
-#xnext = max(small,f(h,x))
-xnext = f(h,x)
-Vnext = spline(x=xgrid,y=V,xout=xnext)
-negout = -(pi(h) + delta*Vnext$y)
+
+Payoff = function(h,x,V){ 
+  #xnext = max(small,f(h,x))
+  xnext = f(h,x)
+  Vnext = spline(x=xgrid,y=V,xout=xnext)
+  negout = -(pi(h) + delta*Vnext$y)
 return(negout)
 }
+
 DFall = data.frame()
 Vnext = vector()
 V = seq(0,0,length.out=sizex)
+
 #Try payoff function
 z=Payoff(.17992,.1,V)
-for(t in T:1)
-{
-print(t)
-for(i in 1:sizex)
-{
+  for(t in T:1)
+  {
+  print(t)
+  for(i in 1:sizex)
+  {
 x = xgrid[i]
 guess = x/2
 low = 0 #lower bound on harvest
 high = x + r*x*(1-x/K) #upper bound on harvest
-Thing = optim(par=guess,fn=Payoff,lower=low,upper=high,x=x,V=V,method=’L-BFGS-B’)
+Thing = optim(par=guess,fn=Payoff,lower=low,upper=high,x=x,V=V,method= 'L-BFGS-B')
 hstar = Thing$par
 Vstar = -Thing$value
 Vnext[i] = Vstar

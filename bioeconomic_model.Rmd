@@ -1,0 +1,69 @@
+---
+title: "Bioeconomic Model"
+author: "Chloe Swick"
+date: "2023-11-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(optimx)
+```
+
+
+```{r}
+## Initialize new COBECOS object called fish 
+## Chloe Note: COBECOS stands for Cost Benefit Control Strategy i'm pretty sure 
+fish<-new("COBECOS", path = path, fitinfo = TRUE, graphics = FALSE)
+
+## Initial Bioeconomic Parameters
+fish@r <- 0.2 #Set value of intrinsic growth rate
+fish@K <- 1000 #Set value of carrying capacity
+fish@Price <- 1  	#  price of harvest    (p)
+fish@FCost <- 0.5	#  fishing cost parameter  (c)
+B0 = 150 #  the initial biomass (x)
+fish@Biomass <- B0	#  the initial biomass (x)
+fish@Fine <- 1		#  the level of fining  (f)
+fish@ShadowVB <- 0.2	# The shadow value of biomass
+fish@TAC <- 0.25 * fish@K * fish@r / 4 #Set value of TAC at fraction MSY
+
+r = 0.05 # Discount rate
+#fish@Effort <- 0.1246 # Set enforcement effort
+
+```
+
+```{r}
+NPV = function(r,P)
+{
+  pv=vector()
+  for (i in 1:length(P))
+  {
+    pv[i] = P[i] / (1+r)^i
+  }
+  return(sum(pv))
+}
+```
+
+
+```{r}
+# Define stock growth function
+fish@stockGrowth <- function (x0,q)
+{
+  x1 = x0 + fish@r * x0 - fish@r * x0^2 / fish@K - q
+  if (x1<0) x1=0
+  return (x1)
+}
+```
+
+
+```{r}
+
+```
+
+
+
+
+
+
+
+
