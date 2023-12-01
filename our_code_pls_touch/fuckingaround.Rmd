@@ -1,0 +1,75 @@
+---
+title: "RAM"
+author: "Chloe Swick"
+date: "2023-11-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(dplyr)
+```
+
+
+```{r}
+unique(stock, incomparables = FALSE, MARGIN = 1,
+       fromLast = FALSE)
+
+
+```
+
+
+
+```{r}
+yellowfin <- timeseries_values_views %>%
+  filter(stocklong == "Yellowfin tuna Indian Ocean")
+```
+
+
+```{r}
+SSBplot <- ggplot(yellowfin, aes(x = year, y = SSBdivSSBmsy)) +
+  geom_line() +
+  labs(title = "Yellowfin Tuna",
+       x = "year",
+       y = "SSB/SSBmsy")
+
+SSBplot
+```
+
+
+```{r}
+Fplot <- ggplot(yellowfin, aes(x = year, y = FdivFmsy)) +
+  geom_rect(aes(xmin = 1975, ymin= 1, xmax =2040,  ymax = 1.5), color = "salmon", fill = "salmon", )+
+  geom_line() +
+  labs(title = "Indian Ocean Yellowfin Tuna",
+       x = "year",
+       y = "F/Fmsy") +
+  xlim(1975,2040) +
+  geom_hline(yintercept=1)+
+  theme_minimal()
+
+Fplot
+```
+
+
+```{r}
+Fplot <- ggplot(yellowfin, aes(x = year, y = FdivFmsy)) +
+  geom_line() +
+  labs(title = "Yellowfin Tuna",
+       x = "year",
+       y = "F/Fmsy")
+
+Fplot
+```
+
+
+```{r}
+load("DBdata[asmt][v4.61].RData")
+```
+
+
+
+
+
+

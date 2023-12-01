@@ -1,0 +1,70 @@
+---
+title: "NRE_Final_Project"
+author: "Chloe Swick"
+date: "2023-12-01"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Stage 1--> Traditional Enforcement 
+
+## Stock Function
+this function should describe how much fish stock there is (birth minus death/harvest)
+
+from the objective function we want to describe how what the optimal TAC should be (MSY)
+
+How far above MSY are we currently? 
+
+```{r}
+
+```
+
+
+
+## Illegal fishing / enforcement 
+
+Model how much of total fishing is illegal fishing. this will be a function of what TAC is set at, and what enforcement/deterrence levels are
+
+more enforcement will lead to less IUU, and get us closer to TAC
+
+enforcement also costs money, the more money you spend on enforcement, the less you have for other things, or enforcement in other areas 
+
+## Optimization 
+
+how much enforcement is optimal? how do we get the highest NPV? (benefit is amount of legal fish landed, cost is cost of enforcement, want to minimize catch)
+
+constraints--> 
+1. catch > or equal to TAC 
+2. enforcement costs < or equal to enforcement budget 
+
+
+# Stage 2--> Enforcement with Skylight 
+
+## optimization 
+
+questions: 
+1. can TAC be reached with budget constraint? 
+  if not, how effective does Skylight need to be to reach TAC? 
+  if yes, how much money is saved in reaching TAC w/ Skylight 
+          how much faster can TAC be reached? 
+          
+2. How do these results change when we have different effectiveness ratings for Skylight? 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

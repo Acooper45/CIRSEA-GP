@@ -1,0 +1,148 @@
+---
+title: "Bioeconomic Model"
+author: "Chloe Swick"
+date: "2023-11-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(optimx)
+```
+
+
+```{r}
+path <- "/Users/chloe/Desktop/GP_model/CIRSEA-GP"
+## Initialize new COBECOS object called fish 
+## Chloe Note: COBECOS stands for Cost Benefit Control Strategy i'm pretty sure 
+fish<-new("COBECOS", path = path, fitinfo = TRUE, graphics = FALSE)
+
+## Initial Bioeconomic Parameters
+r <- 0.2 #Set value of intrinsic growth rate
+K <- 1000 #Set value of carrying capacity
+Price <- 1  	#  price of harvest    (p)
+FCost <- 0.5	#  fishing cost parameter  (c)
+B0 = 150 #  the initial biomass (x)
+Biomass <- B0	#  the initial biomass (x)
+Fine <- 1		#  the level of fining  (f)
+ShadowVB <- 0.2	# The shadow value of biomass
+TAC <- 0.25 * K * r / 4 #Set value of TAC at fraction MSY
+r = 0.05 # Discount rate
+#fish@Effort <- 0.1246 # Set enforcement effort
+
+```
+
+```{r}
+NPV = function(r,P)
+{
+  pv=vector()
+  for (i in 1:length(P))
+  {
+    pv[i] = P[i] / (1+r)^i
+  }
+  return(sum(pv))
+}
+```
+
+```{r}
+### Dynamics
+horizon = 50
+```
+
+
+```{r}
+# Define stock growth function
+stockGrowth <- function (x0,q)
+{
+  x1 = x0 + r * x0 - r * x0^2 / K - q
+  if (x1<0) x1=0
+  return (x1)
+}
+```
+
+
+```{r}
+# Define benefit functions
+
+PrivateBFunc <- function(Harvest,Price,FCost,Biomass,ExpFine,UnitTax,TAC)
+{
+  if (Harvest>TAC)
+    {
+      Price*Harvest-FCost*((Harvest*Harvest)/Biomass)-(ExpFine*(Harvest-TAC))
+    }
+  else
+  {
+    Price*Harvest-FCost*((Harvest*Harvest)/Biomass)
+  }
+}
+
+SocialBFunc <- function(Price,ShadowVB,Harvest,FCost,Biomass,TotalCost,ExpFine,UnitTax,TAC)
+  (Price-ShadowVB)*Harvest-FCost*((Harvest*Harvest)/Biomass)-TotalCost
+
+```
+
+
+```{r}
+######################
+## Static Enforcement
+######################
+
+enfVec = seq(from=0.05,to=0.5,by=0.05)
+enfNum=length(enfVec)
+
+biomass = matrix(data=NA,nrow=horizon,ncol=enfNum)
+harvest = matrix(data=NA,nrow=horizon,ncol=enfNum)
+socialBenefit = matrix(data=NA,nrow=horizon,ncol=enfNum)
+privateBenefit = matrix(data=NA,nrow=horizon,ncol=enfNum)
+effort = matrix(data=NA,nrow=horizon,ncol=enfNum)
+expfine = matrix(data=NA,nrow=horizon,ncol=enfNum)
+npvPrivate = vector()
+npvSocial = vector()
+
+for (j in 1:length(enfVec))
+{
+  Biomass = B0
+  for (i in 1:horizon)
+  {
+    Effort = enfVec[j] # Set enforcement effort
+    fish <- BCalc(fish, Optimize = FALSE,stoch = 0,graphics = FALSE)
+    biomass[i,j] = stockGrowth(Biomass,Harvest)
+    Biomass = biomass[i,j]
+    harvest[i,j] = Harvest
+    socialBenefit[i,j] = SocialB
+    privateBenefit[i,j] = PrivateB
+    effort[i,j] = Effort
+    expfine[i,j] = ExpFine
+  }
+  npvPrivate[j]=NPV(r,privateBenefit[,j])
+  npvSocial[j]=NPV(r,socialBenefit[,j])
+}
+
+par(mfrow=c(3,3),oma = c(0, 0, 4, 0))
+
+eff<-seq(Effort_Min,Effort_Max,length.out=100)
+plot(eff,EPFitFunc(eff,fish),xlab = "Enforcement effort",ylab="Probability",type = "l", col = "red", pch=19,xlim=c(Effort_Min,Effort_Max),ylim=c(0,1),lwd=2)
+try(points(EPData$Effort,EPData$Prob,pch=21),silent=TRUE)
+title(paste(Ename,"EP relationship"))
+
+plot(eff,ECFitFunc(eff,fish),xlab = "Enforcement effort",ylab="Cost",type = "l", col = "red", pch=19,xlim=c(Effort_Min,Effort_Max),lwd=2)
+try(points(ECData$Effort,ECData$Cost,pch=21),silent=TRUE)
+title(paste(Ename,"EC relationship"))      
+
+matplot(effort,type="l",xlab="Time (years)",ylab = "Enforcement Effort")
+matplot(biomass,type="l",xlab="Time (years)",ylab = "Biomass")
+matplot(socialBenefit,type="l",xlab="Time (years)",ylab = "Social Benefit")
+matplot(privateBenefit,type="l",xlab="Time (years)",ylab = "Private Benefit")
+matplot(harvest,type="l",xlab="Time (years)",ylab = "Harvest")
+plot(npvSocial~enfVec,type="l",xlab="Enforcement Effort",ylab = "Social NPV",col="red",lwd=2.5)
+plot(npvPrivate~enfVec,type="l",col="blue",xlab="Enforcement Effort",ylab = "Private NPV",lwd=2.5)
+mtext(paste("r = ",r,";  K =",K,";  B0 =",B0, ";  ShadowVB =",ShadowVB,"\n Price =",Price,";  Cost =",FCost,";  Fine =",Fine,";  TAC =",TAC,"; Discount Rate =",r,"\n Static Enforcement"),outer=TRUE)
+
+```
+
+
+
+
+
+
+
