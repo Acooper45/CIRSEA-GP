@@ -33,7 +33,7 @@ Shaefer Model:
 $$X_{t+1} = X_{t} + rX_{t}(1-X_{t}/K) - qX_t E_t$$
 
 ```{r}
-objective <- function (choice,int_state,discount,p,c,r,K,q, period) {
+objective <- function (effort,int_state,discount,p,c,r,K,q, period) {
   
   #vectors 
   stock<- vector(mode="numeric",length=period+1)
@@ -42,17 +42,17 @@ objective <- function (choice,int_state,discount,p,c,r,K,q, period) {
   
   #initial values
   stock[1] = int_stock
-  benefits[1] = p*q*stock[1]*choice[1] - c*((choice[1])^2)
+  benefits[1] = p*q*stock[1]*effort[1] - c*((effort[1])^2)
  
   
   #for loop
   for (i in 2:(period+1))  #can write this as 'length(choice)', will be 50 because we are going to have 50 values of e
     {  
      X = state[i-1]
-    state[i] = X+ r*X*(1-(X/K))-q*X*choice[i-1]
+    state[i] = X+ r*X*(1-(X/K))-q*X*effort[i-1]
   
    # X_{t+1} = X_{t} + rX_{t}(1-X_{t}/K) - qX_t E_t
-    benefits[i] = p*q*state[i]*choice[i] - c*(choice[i])^2
+    benefits[i] = p*q*state[i]*effort[i] - c*(effort[i])^2
     
     
   }
@@ -64,6 +64,7 @@ objective <- function (choice,int_state,discount,p,c,r,K,q, period) {
   return(-npv)
   
 }
+```
 
 ## Illegal fishing / enforcement 
 
