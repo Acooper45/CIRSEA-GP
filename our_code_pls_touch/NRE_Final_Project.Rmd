@@ -9,13 +9,13 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 #install.packages("devtools")
 #install.packages("htmltools")
-devtools::install_github("james-thorson/FishLife")
-library("FishLife")
+# devtools::install_github("james-thorson/FishLife")
+# library("FishLife")
 ```
 
 
 ```{r}
-vignette("tutorial","FishLife")
+# vignette("tutorial","FishLife")
 ```
 
 
@@ -33,12 +33,12 @@ Shaefer Model:
 $$X_{t+1} = X_{t} + rX_{t}(1-X_{t}/K) - qX_t E_t$$
 
 ```{r}
-objective <- function(effort, int_state,discount, p, c, r, K, q, period) {
+objective <- function(effort, int_state, discount, p, c, r, K, q, period) {
   
   #vectors 
-  stock <- vector(mode="numeric",length=period+1)
-  benefits <- vector(mode="numeric",length=period+1)
- # choice <- vector(mode="numeric",length=50)
+  stock <- vector(mode = "numeric", length = period+1)
+  benefits <- vector(mode = "numeric", length = period+1)
+ # choice <- vector(mode = "numeric", length = 50)
   
   #initial values
   stock[1] = int_stock
@@ -47,16 +47,16 @@ objective <- function(effort, int_state,discount, p, c, r, K, q, period) {
   
   #for loop
   for (i in 2:(period+1))  #can write this as 'length(choice)', will be 50 because we are going to have 50 values of e
-    {  
-     X = state[i-1]
-    state[i] = X+ r * X * (1 - (X/K)) - q * X * effort[i-1]
+    {
+    ### Stock dynamics
+    stock[i] = stock[i-1] + r * stock[i-1] * (1 - (stock[i-1]/K)) - q * stock[i-1] * effort[i-1]
   
    # X_{t+1} = X_{t} + rX_{t}(1-X_{t}/K) - qX_t E_t
-    benefits[i] = p * q * state[i] * effort[i] - c * ((effort[i])^2)    
+    benefits[i] = p * q * stock[i] * effort[i] - c * ((effort[i])^2)    
     
   }
   
-  t = seq(from=0, period) 
+  t = seq(from = 0, period) 
   pv = ((1/(1 + discount))^t) * benefits
   npv = sum(pv)
   
@@ -81,6 +81,56 @@ constraints-->
 1. catch > or equal to TAC 
 2. enforcement costs < or equal to enforcement budget 
 
+```{r}
+### Define the constraint function
+
+### Constraint 1: Stock cannot exceed carrying capacity K
+constraint1 <- function(effort, int_state, discount, p, c, r, K, q, period){
+
+  stock <- vector(mode = "numeric", length = period+1)
+  
+  ### Initial states
+  stock[1] = int_stock
+  
+  ### For-loop
+  for(i in 2:length(period+1)){
+    
+    stock[i] = stock[i-1] + r * stock[i-1] * (1 - (stock[i-1]/K)) - q * stock[i-1] * effort[i-1]
+  
+  } # End for-loop
+  
+  const1 = stock[i] - K
+  
+  return(const1)
+  
+} # End first constraint function
+
+
+
+### Constraint 2: Harvest cannot exceed TAC (MSY)
+constraint2 <- function(effort, int_state, discount, p, c, r, K, q, period){
+
+  stock <- vector(mode = "numeric", length = period+1)
+  
+  ### Initial states
+  stock[1] = int_stock
+  
+  ### For-loop
+  for(i in 2:length(period+1)){
+    
+    stock[i] = stock[i-1] + r * stock[i-1] * (1 - (stock[i-1]/K)) - q * stock[i-1] * effort[i-1]
+  
+  } # End for-loop
+  
+  ### MSY for the Indian Ocean yellowfin stock is 403,000 MT (Naunet Fisheries Consultants, 2021)
+  
+  const2 = q * stock[i-1] * effort[i-1] - 403000
+  
+  return(const2)
+  
+} # End first constraint function
+
+```
 
 # Stage 2--> Enforcement with Skylight 
 
@@ -93,8 +143,6 @@ questions:
           how much faster can TAC be reached? 
           
 2. How do these results change when we have different effectiveness ratings for Skylight? 
-
-
 
 
 
