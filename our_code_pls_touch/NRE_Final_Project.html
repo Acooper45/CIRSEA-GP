@@ -370,26 +370,27 @@ TAC should be (MSY)</p>
 <p>Shaefer Model:</p>
 <p><span class="math display">\[X_{t+1} = X_{t} + rX_{t}(1-X_{t}/K) -
 qX_t E_t\]</span></p>
-<pre class="r"><code>objective &lt;- function(effort, int_state, discount, p, c, r, K, q, period) {
+<pre class="r"><code>objective &lt;- function(I, int_stock, discount, p, c, ce, r, K, period, L, effort, alpha) {
   
   #vectors 
-  stock &lt;- vector(mode=&quot;numeric&quot;,length=period+1)
-  benefits &lt;- vector(mode=&quot;numeric&quot;,length=period+1)
- # choice &lt;- vector(mode=&quot;numeric&quot;,length=50)
+  stock &lt;- vector(mode = &quot;numeric&quot;, length = 21)
+  benefits &lt;- vector(mode = &quot;numeric&quot;, length = 21)
   
   #initial values
   stock[1] = int_stock
-  benefits[1] = p * q * stock[1] * effort[1] - c * ((effort[1])^2)
- 
+  benefits[1] = p*(L+I[1]) - c*((L+I[1])/stock[1]) - ce*(effort[1]) - alpha*effort[1]*I
+  
   
   #for loop
-  for (i in 2:(period+1))  #can write this as &#39;length(choice)&#39;, will be 50 because we are going to have 50 values of e
+  for (i in 2:(period+1))  
     {
     ### Stock dynamics
-    stock[i] = stock[i-1] + r * stock[i-1] * (1 - (stock[i-1]/K)) - q * stock[i-1] * effort[i-1]
+    stock[i] = stock[i-1] + r * stock[i-1] * (1 - (stock[i-1]/K)) - L -I[i-1] 
   
+    
    # X_{t+1} = X_{t} + rX_{t}(1-X_{t}/K) - qX_t E_t
-    benefits[i] = p * q * stock[i] * effort[i] - c * ((effort[i])^2)    
+    benefits[i] = p*(L + I[i]) - c*((L+I[i])/stock[i]) 
+    - ce*(effort[i])  - alpha*effort[i]*I[i]
     
   }
   
@@ -420,25 +421,561 @@ want to minimize catch)</p>
 &lt; or equal to enforcement budget</p>
 <pre class="r"><code>### Define the constraint function
 
+### Constraint 1: Stock cannot exceed carrying capacity K
 constraint1 &lt;- function(effort, int_state, discount, p, c, r, K, q, period){
 
-  pollution &lt;- vector(mode = &quot;numeric&quot;, length = length(choice))
+  stock &lt;- vector(mode = &quot;numeric&quot;, length = period+1)
   
   ### Initial states
-  pollution[1] = initial_pollutant
+  stock[1] = int_stock
   
   ### For-loop
-  for(i in 2:length(choice)){
+  for(i in 2:length(period+1)){
     
-    pollution[i] = pollution[i-1] * (1 - gamma) + alpha * choice[i-1]
+    stock[i] = stock[i-1] + r * stock[i-1] * (1 - (stock[i-1]/K)) - q * stock[i-1] * effort[i-1]
   
   } # End for-loop
   
-  const = pollution[11] - 25
+  const1 = stock[i] - K
   
-  return(const)
+  return(const1)
   
-} # End constraint function</code></pre>
+} # End first constraint function
+
+
+
+### Constraint 2: Harvest cannot exceed TAC (MSY)
+constraint2 &lt;- function(effort, int_state, discount, p, c, r, K, q, period){
+
+  stock &lt;- vector(mode = &quot;numeric&quot;, length = period+1)
+  
+  ### Initial states
+  stock[1] = int_stock
+  
+  ### For-loop
+  for(i in 2:length(period+1)){
+    
+    stock[i] = stock[i-1] + r * stock[i-1] * (1 - (stock[i-1]/K)) - q * stock[i-1] * effort[i-1]
+  
+  } # End for-loop
+  
+  ### MSY for the Indian Ocean yellowfin stock is 403,000 MT (Naunet Fisheries Consultants, 2021)
+  
+  const2 = q * stock[i-1] * effort[i-1] - 403000
+  
+  return(const2)
+  
+} # End first constraint function</code></pre>
+<pre class="r"><code>## Use this options list for nloptr
+
+local_opts&lt;-list(&quot;algorithm&quot;=&quot;NLOPT_LN_COBYLA&quot;,xtol_rel=1e-15)
+options=list(&quot;algorithm&quot;=&quot;NLOPT_LN_AUGLAG&quot;,xtol_rel=1e-15,maxeval=16000,&quot;local_opts&quot;=local_opts)
+
+period = 20
+
+output1 = nloptr(x0=rep(1, times=21),
+                 eval_f=objective,
+                 #eval_g_ineq = constraint,
+                 lb=rep(0, times=21),
+                 opts = options,
+                 int_stock=883400, discount=.05, p=2397, c=1000, ce =4000, r=.2, K=2265128, 
+                 period =20, L = 403000, effort= .5, alpha = .4)</code></pre>
+<pre><code>## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length
+
+## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length</code></pre>
+<pre class="r"><code>round(output1$solution, 3) #effort </code></pre>
+<pre><code>##  [1] 20.859 19.951 19.084 18.259 17.473 16.724 16.011 15.332 14.685 14.069
+## [11] 13.483 12.924 12.392 11.885 11.402 10.943 10.505 10.088  9.691  9.313
+## [21]  8.953</code></pre>
+<pre class="r"><code>-output1$objective #PVNB</code></pre>
+<pre><code>## [1] 13004860854</code></pre>
+<pre class="r"><code>#Making a table
+
+stock_a &lt;- function(I, int_stock=883400, discount=.05, p=2397, c=1000, ce =4000, r=.2, K=2265128, 
+                 period =20, L = 403000, effort= .5, alpha = .4) {
+  
+  #vectors 
+  stock &lt;- vector(mode = &quot;numeric&quot;, length = 21)
+  benefits &lt;- vector(mode = &quot;numeric&quot;, length = 21)
+  
+  #initial values
+  stock[1] = int_stock
+  benefits[1] = p*(L+I[1]) - c*((L+I[1])/stock[1]) - ce*(effort[1]) - alpha*effort[1]*I
+  
+  
+  #for loop
+  for (i in 2:(period+1))  
+    {
+    ### Stock dynamics
+    stock[i] = stock[i-1] + r * stock[i-1] * (1 - (stock[i-1]/K)) - L -I[i-1] 
+  
+    
+   # X_{t+1} = X_{t} + rX_{t}(1-X_{t}/K) - qX_t E_t
+    benefits[i] = p*(L + I[i]) - c*((L+I[i])/stock[i]) 
+    - ce*(effort[i])  - alpha*effort[i]*I[i]
+    
+  }
+  
+  t = seq(from = 0, period) 
+  pv = ((1/(1 + discount))^t) * benefits
+  npv = sum(pv)
+  
+  
+# This time we return a data frame with the variables we want in the table.  The value after the = indicates the column label.
+  
+  return(data.frame(&quot;Period&quot;=t, &quot;Present Value&quot; =pv, &quot;Stock&quot;=stock, &quot;Harvest&quot; =I+L))
+
+}
+
+# The next command is telling R to use the solution found above, choice, to evaluate the function stock and to round the values in the data frame to two places past the decimal point.  The second command says to make a table with these values. 
+
+tbl_1a=round(stock_a(output1$solution),3)      #  2 indicates rounding</code></pre>
+<pre><code>## Warning in benefits[1] &lt;- p * (L + I[1]) - c * ((L + I[1])/stock[1]) - ce * :
+## number of items to replace is not a multiple of replacement length</code></pre>
+<pre class="r"><code>kable(tbl_1a)</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="right">Period</th>
+<th align="right">Present.Value</th>
+<th align="right">Stock</th>
+<th align="right">Harvest</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right">0</td>
+<td align="right">966038539</td>
+<td align="right">8.834000e+05</td>
+<td align="right">403020.9</td>
+</tr>
+<tr class="even">
+<td align="right">1</td>
+<td align="right">920036320</td>
+<td align="right">5.881539e+05</td>
+<td align="right">403020.0</td>
+</tr>
+<tr class="odd">
+<td align="right">2</td>
+<td align="right">876222461</td>
+<td align="right">2.722212e+05</td>
+<td align="right">403019.1</td>
+</tr>
+<tr class="even">
+<td align="right">3</td>
+<td align="right">834501353</td>
+<td align="right">-8.289666e+04</td>
+<td align="right">403018.3</td>
+</tr>
+<tr class="odd">
+<td align="right">4</td>
+<td align="right">794758302</td>
+<td align="right">-5.031010e+05</td>
+<td align="right">403017.5</td>
+</tr>
+<tr class="even">
+<td align="right">5</td>
+<td align="right">756910942</td>
+<td align="right">-1.029087e+06</td>
+<td align="right">403016.7</td>
+</tr>
+<tr class="odd">
+<td align="right">6</td>
+<td align="right">720866170</td>
+<td align="right">-1.731428e+06</td>
+<td align="right">403016.0</td>
+</tr>
+<tr class="even">
+<td align="right">7</td>
+<td align="right">686537991</td>
+<td align="right">-2.745424e+06</td>
+<td align="right">403015.3</td>
+</tr>
+<tr class="odd">
+<td align="right">8</td>
+<td align="right">653844620</td>
+<td align="right">-4.363037e+06</td>
+<td align="right">403014.7</td>
+</tr>
+<tr class="even">
+<td align="right">9</td>
+<td align="right">622708186</td>
+<td align="right">-7.319456e+06</td>
+<td align="right">403014.1</td>
+</tr>
+<tr class="odd">
+<td align="right">10</td>
+<td align="right">593054536</td>
+<td align="right">-1.391673e+07</td>
+<td align="right">403013.5</td>
+</tr>
+<tr class="even">
+<td align="right">11</td>
+<td align="right">564813051</td>
+<td align="right">-3.420369e+07</td>
+<td align="right">403012.9</td>
+</tr>
+<tr class="odd">
+<td align="right">12</td>
+<td align="right">537916476</td>
+<td align="right">-1.447434e+08</td>
+<td align="right">403012.4</td>
+</tr>
+<tr class="even">
+<td align="right">13</td>
+<td align="right">512300760</td>
+<td align="right">-2.023937e+09</td>
+<td align="right">403011.9</td>
+</tr>
+<tr class="odd">
+<td align="right">14</td>
+<td align="right">487904901</td>
+<td align="right">-3.641148e+11</td>
+<td align="right">403011.4</td>
+</tr>
+<tr class="even">
+<td align="right">15</td>
+<td align="right">464670805</td>
+<td align="right">-1.170658e+16</td>
+<td align="right">403010.9</td>
+</tr>
+<tr class="odd">
+<td align="right">16</td>
+<td align="right">442543143</td>
+<td align="right">-1.210034e+25</td>
+<td align="right">403010.5</td>
+</tr>
+<tr class="even">
+<td align="right">17</td>
+<td align="right">421469224</td>
+<td align="right">-1.292803e+43</td>
+<td align="right">403010.1</td>
+</tr>
+<tr class="odd">
+<td align="right">18</td>
+<td align="right">401398865</td>
+<td align="right">-1.475712e+79</td>
+<td align="right">403009.7</td>
+</tr>
+<tr class="even">
+<td align="right">19</td>
+<td align="right">382284275</td>
+<td align="right">-1.922829e+151</td>
+<td align="right">403009.3</td>
+</tr>
+<tr class="odd">
+<td align="right">20</td>
+<td align="right">364079936</td>
+<td align="right">-3.264514e+295</td>
+<td align="right">403009.0</td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
 <div id="stage-2-enforcement-with-skylight" class="section level1">
