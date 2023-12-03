@@ -479,11 +479,11 @@ output_enf = nloptr(x0=rep(1, times=21),
                  period =20, effort= .5, alpha = .4)
                  
 round(output_enf$solution, 3) #effort </code></pre>
-<pre><code>##  [1] 19.751 19.068 18.371 17.701 17.061 16.449 15.866 15.308 14.774 14.264
+<pre><code>##  [1] 19.751 19.068 18.372 17.701 17.061 16.449 15.866 15.308 14.774 14.264
 ## [11] 13.775 13.307 12.858 12.427 12.013 11.616 11.233 10.865 10.510 10.168
 ## [21]  9.940</code></pre>
 <pre class="r"><code>-output_enf$objective #PVNB</code></pre>
-<pre><code>## [1] 3444048080</code></pre>
+<pre><code>## [1] 3444048081</code></pre>
 <pre class="r"><code>#Making a table
 
 stock_a &lt;- function(I, int_stock=883400, discount=.05, p=2397, L=113256, c=1000, ce =0, r=.2, K=2265128, 
@@ -538,7 +538,7 @@ kable(tbl_enf)</code></pre>
 <tbody>
 <tr class="odd">
 <td align="right">0</td>
-<td align="right">271521847</td>
+<td align="right">271521846</td>
 <td align="right">883400.0</td>
 <td align="right">113275.8</td>
 <td align="right">19.751</td>
@@ -555,7 +555,7 @@ kable(tbl_enf)</code></pre>
 <td align="right">246275318</td>
 <td align="right">872154.1</td>
 <td align="right">113274.4</td>
-<td align="right">18.371</td>
+<td align="right">18.372</td>
 </tr>
 <tr class="even">
 <td align="right">3</td>
@@ -678,7 +678,7 @@ kable(tbl_enf)</code></pre>
 </tr>
 <tr class="odd">
 <td align="right">20</td>
-<td align="right">102324852</td>
+<td align="right">102324853</td>
 <td align="right">696493.9</td>
 <td align="right">113265.9</td>
 <td align="right">9.940</td>
