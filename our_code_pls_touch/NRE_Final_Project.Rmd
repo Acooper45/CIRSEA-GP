@@ -12,6 +12,8 @@ library(tidyverse)
 library(nloptr)
 library(knitr)
 library(dplyr)
+library(ggplot2)
+library(numDeriv)
 ```
 
 
@@ -26,116 +28,59 @@ How far above MSY are we currently?
 
 Shaefer Model: 
 
-$$X_{t+1} = X_{t} + rX_{t}(1-X_{t}/K) - qX_t E_t$$
+$$X_{t+1} = X_{t} + rX_{t} -\frac{rX_{t}^2}{K} $$
 
-## with no enforcement 
+$$X_{t+1} = X_{t} + 0.2X_{t} -\frac{0.2X_{t}^2}{2,265,128} $$
+
 
 ```{r}
-#with no enforcement 
-objective_no_enf <- function(I, int_stock, discount, p, c, r, K, period) {
+ period = seq(1,75, by =1)
+stock <- function(Y, int_stock, r, K, period) {
+   stock <- vector(mode = "numeric", length = 75)
+   
+   stock[1] = int_stock
+   
+    for (i in 2:(75))  
+    {
+    ### Stock dynamics
+    stock[i] = stock[i-1] + (r * stock[i-1]) - (r*(stock[i-1])^2)/K  - Y 
+    }
+   return(stock)
+}
+
+ stock1<-stock(Y=0, int_stock = 1000, r=.2, K=2265128)
+ 
+ stock_data <- data.frame(period,stock1)
+
+ggplot(data = stock_data,aes( x=period, y= stock1)) +
+  geom_line() +
+   labs(title = "Yellowfin Tuna Growth Function",
+       x = "year",
+       y = "Biomass (MT)") +
+  theme_minimal()
+
+```
+
+
+
+```{r}
+objective <- function(I, int_stock, discount, p, L, c, ce, r, K, period, effort, alpha) {
   
   #vectors 
   stock <- vector(mode = "numeric", length = 21)
-  L <- vector(mode = "numeric", length = 21)
   benefits <- vector(mode = "numeric", length = 21)
   
   #initial values
   stock[1] = int_stock
-  L[1] = int_stock*.1
-  benefits[1] = p*(L[1]+I[1]) - c*((L[1]+I[1])/stock[1]) 
+  benefits[1] = p*(L+I[1]) - c*((L+I[1])^2/stock[1]) - ce*(effort) - alpha*effort*I[1]
   
   
   #for loop
   for (i in 2:(period+1))  
     {
     ### Stock dynamics
-    stock[i] = stock[i-1] + r * stock[i-1] * (1 - (stock[i-1]/K)) - L[i-1] -I[i-1] 
-    L[i] = stock[i-1]*.1
-    benefits[i] = p*(L[i] + I[i]) - c*((L[i]+I[i])/stock[i]) 
-    
-  }
-  
-  t = seq(from = 0, period) 
-  pv = ((1/(1 + discount))^t) * benefits
-  npv = sum(pv)
-  
-  return(-npv)
-  
-}
-```
-
-
-```{r}
-### Constraint: harvest < X
-constraint_no_enf <- function(I, int_stock, discount, p, c, r, K, period) {
-  
- stock <- vector(mode = "numeric", length = 21)
-  L <- vector(mode = "numeric", length = 21)
-  const <- vector(mode = "numeric", length = 21)
-  
-  ### Initial states
-  stock[1] = int_stock
-   L[1] = int_stock*.1
-  const[1] = (L+I) -stock[1]
-  
-  ### For-loop
-  for (i in 2:(21)) {
-    stock[i] = stock[i - 1] + r * stock[i - 1] * (1 - (stock[i - 1] / K)) - L[i-1] - I[i - 1]
-    L[i] = stock[i-1]*.1
-    const[i] = (L+I) - stock[i]
-  } # End for-loop
-  
-  return(const)
-}
-```
-
-
-```{r}
-## Use this options list for nloptr
-
-local_opts<-list("algorithm"="NLOPT_LN_COBYLA",xtol_rel=1e-15)
-options=list("algorithm"="NLOPT_LN_AUGLAG",xtol_rel=1e-15,maxeval=16000,"local_opts"=local_opts)
-
-period = 20
-
-output_no_enf = nloptr(x0=rep(1, times=21),
-                 eval_f= function(I) objective_no_enf(I, int_stock = 883400, 
-                                                      discount=.05, p=2397, c=1000, r=.2, K=2265128, period =20),
-                 eval_g_ineq = function(I) constraint_no_enf(I, int_stock = 883400, 
-                                                      discount=.05, p=2397, c=1000, r=.2, K=2265128, period =20),
-                 lb=rep(0, times=21),
-                 opts = options,
-                 )
-                 
-round(output_no_enf$solution, 3) #effort 
--output_no_enf$objective #PVNB
-
-```
-
-
-## with enforcement 
-
-```{r}
-objective <- function(I, int_stock, discount, p, c, ce, r, K, period, effort, alpha) {
-  
-  #vectors 
-  stock <- vector(mode = "numeric", length = 21)
-  L <- vector(mode = "numeric", length = 21)
-  benefits <- vector(mode = "numeric", length = 21)
-  
-  #initial values
-  stock[1] = int_stock
-  L[1] = int_stock*.2
-  benefits[1] = p*(L[1]+I[1]) - c*((L[1]+I[1])/stock[1]) - ce*(effort) - alpha*effort*I[1]
-  
-  
-  #for loop
-  for (i in 2:(period+1))  
-    {
-    ### Stock dynamics
-    stock[i] = stock[i-1] + r * stock[i-1] * (1 - (stock[i-1]/K)) - L[i-1] -I[i-1] 
-    L[i] = stock[i-1]*.2
-    benefits[i] = p*(L[i] + I[i]) - c*((L[i]+I[i])/stock[i]) 
+    stock[i] = stock[i-1] + (r * stock[i-1]) - (r*(stock[i-1])^2)/K  - (L+I[i-1] )
+    benefits[i] = p*(L + I[i]) - c*((L+I[i])^2/stock[i]) 
     - ce*(effort)  - alpha*effort*I[i]
     
   }
@@ -161,30 +106,25 @@ enforcement also costs money, the more money you spend on enforcement, the less 
 
 how much enforcement is optimal? how do we get the highest NPV? (benefit is amount of legal fish landed, cost is cost of enforcement, want to minimize catch)
 
-what if we set period equal to infinity? 
-
 constraints--> 
 1. catch > or equal to TAC 
 2. enforcement costs < or equal to enforcement budget 
 
 ```{r}
 ### Constraint: harvest < X
-constraint <- function(I, int_stock, discount, p, c, ce, r, K, period, effort, alpha) {
+constraint <- function(I, int_stock, discount, p, L, c, ce, r, K, period, effort, alpha) {
   
  stock <- vector(mode = "numeric", length = 21)
-  L <- vector(mode = "numeric", length = 21)
   const <- vector(mode = "numeric", length = 21)
   
   ### Initial states
   stock[1] = int_stock
-   L[1] = int_stock*.2
   const[1] = (L[1]+I[1]) -stock[1]
   
   ### For-loop
   for (i in 2:(21)) {
-    stock[i] = stock[i - 1] + r * stock[i - 1] * (1 - (stock[i - 1] / K)) - L[i-1] - I[i - 1]
-    L[i] = stock[i-1]*.2
-    const[i] = (L[i]+I[i]) - stock[i]
+    stock[i] = stock[i - 1] + r * stock[i - 1] * (1 - (stock[i - 1] / K)) - L - I[i - 1]
+    const[i] = (L+I[i]) - stock[i]
   } # End for-loop
   
   return(const)
@@ -192,6 +132,7 @@ constraint <- function(I, int_stock, discount, p, c, ce, r, K, period, effort, a
 ```
 
 
+### with enforcement: 
 
 ```{r}
 ## Use this options list for nloptr
@@ -201,16 +142,17 @@ options=list("algorithm"="NLOPT_LN_AUGLAG",xtol_rel=1e-15,maxeval=16000,"local_o
 
 period = 20
 
-output1 = nloptr(x0=rep(1, times=21),
+output_enf = nloptr(x0=rep(1, times=21),
                  eval_f=objective,
                  eval_g_ineq = constraint,
                  lb=rep(0, times=21),
                  opts = options,
-                 int_stock=883400, discount=.05, p=2397, c=1000, ce =4000, r=.2, K=2265128, 
+                 int_stock=883400, discount=.05, p=2397, L=113256, c=1000, 
+                 ce =4000, r=.2, K=2265128, 
                  period =20, effort= .5, alpha = .4)
                  
-round(output1$solution, 3) #effort 
--output1$objective #PVNB
+round(output_enf$solution, 3) #effort 
+-output_enf$objective #PVNB
 
 ```
 
@@ -218,18 +160,16 @@ round(output1$solution, 3) #effort
 ```{r}
 #Making a table
 
-stock_a <- function(I, int_stock=883400, discount=.05, p=2397, c=1000, ce =4000, r=.2, K=2265128, 
-                 period =20, effort= .5, alpha = .4) {
+stock_a <- function(I, int_stock=883400, discount=.05, p=2397, L=113256, c=1000, ce =0, r=.2, K=2265128, 
+                 period =20, effort= 0, alpha = 0) {
   
   #vectors 
   stock <- vector(mode = "numeric", length = 21)
-  L <- vector(mode = "numeric", length = 21)
   benefits <- vector(mode = "numeric", length = 21)
   
   #initial values
   stock[1] = int_stock
-  L[1] = int_stock*.2
-  benefits[1] = p*(L[1]+I[1]) - c*((L[1]+I[1])/stock[1]) - ce*(effort) - alpha*effort*I[1]
+  benefits[1] = p*(L+I[1]) - c*((L+I[1])/stock[1]) - ce*(effort) - alpha*effort*I[1]
   
   
   
@@ -237,9 +177,8 @@ stock_a <- function(I, int_stock=883400, discount=.05, p=2397, c=1000, ce =4000,
   for (i in 2:(period+1))  
     {
     ### Stock dynamics
-    stock[i] = stock[i-1] + r * stock[i-1] * (1 - (stock[i-1]/K)) - L[i-1] -I[i-1] 
-    L[i] = stock[i-1]*.2
-    benefits[i] = p*(L[i] + I[i]) - c*((L[i]+I[i])/stock[i]) 
+    stock[i] = stock[i-1] + r * stock[i-1] * (1 - (stock[i-1]/K)) - L -I[i-1] 
+    benefits[i] = p*(L + I[i]) - c*((L+I[i])/stock[i]) 
     - ce*(effort[i])  - alpha*effort[i]*I[i]
     
   }
@@ -257,15 +196,85 @@ stock_a <- function(I, int_stock=883400, discount=.05, p=2397, c=1000, ce =4000,
 
 # The next command is telling R to use the solution found above, choice, to evaluate the function stock and to round the values in the data frame to two places past the decimal point.  The second command says to make a table with these values. 
 
-tbl_1a=round(stock_a(output1$solution),3)      #  2 indicates rounding
+tbl_enf=round(stock_a(output_enf$solution),3)      #  2 indicates rounding
 
-kable(tbl_1a)
+kable(tbl_enf)
 
 ```
 
 
+### W/o enforcement 
+
 ```{r}
-plot(tbl_1a$Period, tbl_1a$Stock)
+## Use this options list for nloptr
+
+local_opts<-list("algorithm"="NLOPT_LN_COBYLA",xtol_rel=1e-15)
+options=list("algorithm"="NLOPT_LN_AUGLAG",xtol_rel=1e-15,maxeval=16000,"local_opts"=local_opts)
+
+period = 20
+
+output_no_enf = nloptr(x0=rep(1, times=21),
+                 eval_f=objective,
+                 #eval_g_ineq = constraint,
+                 lb=rep(0, times=21),
+                 opts = options,
+                 int_stock=883400, discount=0, p=2397, L=0, c=0, ce =0, r=.2, K=2265128, 
+                 period =20, effort= 0, alpha = 0)
+                 
+round(output_no_enf$solution, 3) #effort 
+-output_no_enf$objective #PVNB
+```
+
+
+```{r}
+#Making a table
+
+stock_a <- function(I, int_stock=883400, discount=.05, p=2397, L=0, c=0, ce =0, r=.2, K=2265128, 
+                 period =20, effort= 0, alpha = 0) {
+  
+  #vectors 
+  stock <- vector(mode = "numeric", length = 21)
+  benefits <- vector(mode = "numeric", length = 21)
+  
+  #initial values
+  stock[1] = int_stock
+  benefits[1] = p*(L+I[1]) - c*((L+I[1])/stock[1]) - ce*(effort) - alpha*effort*I[1]
+  
+  
+  
+  #for loop
+  for (i in 2:(period+1))  
+    {
+    ### Stock dynamics
+    stock[i] = stock[i-1] + r * stock[i-1] * (1 - (stock[i-1]/K)) - L -I[i-1] 
+    benefits[i] = p*(L + I[i]) - c*((L+I[i])/stock[i]) 
+    - ce*(effort[i])  - alpha*effort[i]*I[i]
+    
+  }
+  
+  t = seq(from = 0, period) 
+  pv = ((1/(1 + discount))^t) * benefits
+  npv = sum(pv)
+  
+  
+# This time we return a data frame with the variables we want in the table.  The value after the = indicates the column label.
+  
+  return(data.frame("Period"=t, "Present Value" =pv, "Stock"=stock, "Harvest" =I+L, "Illegal Fishing" = I))
+
+}
+
+# The next command is telling R to use the solution found above, choice, to evaluate the function stock and to round the values in the data frame to two places past the decimal point.  The second command says to make a table with these values. 
+
+tbl_no_enf=round(stock_a(output_no_enf$solution),3)      #  2 indicates rounding
+
+kable(tbl_no_enf)
+
+```
+
+
+
+```{r}
+plot(tbl_no_enf$Period, tbl_no_enf$Stock)
 ```
 
 
@@ -284,12 +293,123 @@ questions:
 
 
 
+############################### trying something new 
 
 
+```{r}
+objective_new <- function(Y, int_stock, discount, p, c, r, K, period) {
+  
+  #vectors 
+  stock <- vector(mode = "numeric", length = 76)
+  benefits <- vector(mode = "numeric", length = 76)
+  
+  #initial values
+  stock[1] = int_stock
+  benefits[1] = p*(Y[1]) - c*(Y[1]^2/stock[1]) 
+  
+  
+  #for loop
+  for (i in 2:(period+1))  
+    {
+    ### Stock dynamics
+     stock[i] = stock[i-1] + (r * stock[i-1]) - (r*(stock[i-1])^2)/K  - Y[i-1] 
+    benefits[i] = p*(Y[i]) - c*(Y[i]^2/stock[i]) 
+    
+  }
+  
+  t = seq(from = 0, period) 
+  pv = ((1/(1 + discount))^t) * benefits
+  npv = sum(pv)
+  
+  return(-npv)
+  
+}
+```
 
 
+```{r}
+### Constraint: harvest < X
+constraint_new <- function(Y, int_stock, discount, p, c,  r, K, period) {
+  
+ stock <- vector(mode = "numeric", length = 76)
+  const <- vector(mode = "numeric", length = 76)
+  
+  ### Initial states
+  stock[1] = int_stock
+  const[1] = Y[1] -stock[1]
+  
+  ### For-loop
+  for (i in 2:(period+1)) {
+     stock[i] = stock[i-1] + (r * stock[i-1]) - (r*(stock[i-1])^2)/K  - Y[i-1] 
+    const[i] = Y[i] - stock[i-1]
+  } # End for-loop
+  
+  return(const)
+}
+```
 
 
+```{r}
+## Use this options list for nloptr
+
+local_opts<-list("algorithm"="NLOPT_LN_COBYLA",xtol_rel=1e-15)
+options=list("algorithm"="NLOPT_LN_AUGLAG",xtol_rel=1e-15,maxeval=16000,"local_opts"=local_opts)
+
+period = 75
+
+output_new = nloptr(x0=rep(1, times=76),
+                 eval_f=objective_new,
+                 eval_g_ineq = constraint_new,
+                 lb=rep(0, times=76),
+                 opts = options,
+                 int_stock=8000, discount=.05, p=10, c=7, r=.2, K=2265128, 
+                 period =75)
+                 
+round(output_new$solution, 3) #effort 
+-output_new$objective #PVNB
+```
+
+
+```{r}
+#Making a table
+
+stock_a <- function(Y, int_stock=8000, discount=.05, p=10, c=7, r=.2, K=2265128, period =75) {
+  
+ stock <- vector(mode = "numeric", length = 76)
+  benefits <- vector(mode = "numeric", length = 76)
+  
+  #initial values
+  stock[1] = int_stock
+  benefits[1] = p*(Y[1]) - c*(Y[1]^2/stock[1]) 
+  
+  
+  #for loop
+  for (i in 2:(period+1))  
+    {
+    ### Stock dynamics
+    stock[i] = stock[i-1] + (r * stock[i-1]) - (r*(stock[i-1])^2)/K  - Y[i-1] 
+    benefits[i] = p*(Y[i]) - c*(Y[i]^2/stock[i]) 
+    
+  }
+  
+  t = seq(from = 0, period) 
+  pv = ((1/(1 + discount))^t) * benefits
+  npv = sum(pv)
+  
+  
+# This time we return a data frame with the variables we want in the table.  The value after the = indicates the column label.
+  
+  return(data.frame("Period"=t, "Present Value" =pv, "Stock"=stock, "Harvest" =Y))
+
+}
+
+# The next command is telling R to use the solution found above, choice, to evaluate the function stock and to round the values in the data frame to two places past the decimal point.  The second command says to make a table with these values. 
+
+tbl_new=round(stock_a(output_new$solution),3)      #  2 indicates rounding
+
+kable(tbl_new)
+
+```
 
 
 
