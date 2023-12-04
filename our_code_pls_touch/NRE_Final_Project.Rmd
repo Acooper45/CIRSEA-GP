@@ -79,7 +79,7 @@ objective <- function(I, int_stock, discount, p, L, c, ce, r, K, period, effort,
   for (i in 2:(period+1))  
     {
     ### Stock dynamics
-    stock[i] = stock[i-1] + (r * stock[i-1]) - (r*(stock[i-1])^2)/K  - (L+I[i-1] )
+    stock[i] = stock[i-1] + r * stock[i-1] * (1 - stock[i-1]/K) - (L + I[i-1])
     benefits[i] = p*(L + I[i]) - c*((L+I[i])^2/stock[i]) 
     - ce*(effort)  - alpha*effort*I[i]
     

@@ -450,7 +450,7 @@ constraint &lt;- function(I, int_stock, discount, p, L, c, ce, r, K, period, eff
   
   ### Initial states
   stock[1] = int_stock
-  const[1] = (L[1]+I[1]) -stock[1]
+  const[1] = (L+I[1]) -stock[1]
   
   ### For-loop
   for (i in 2:(21)) {
