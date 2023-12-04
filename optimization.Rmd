@@ -1,0 +1,186 @@
+---
+title: "optimization_model"
+author: "Chloe Swick"
+date: "2023-12-04"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(nloptr)
+library(knitr)
+library(dplyr)
+library(ggplot2)
+```
+
+
+
+```{r}
+objective <- function(I, int_stock, discount, p, L, c, r, K, period, effort, alpha) {
+  
+  #vectors 
+  stock <- vector(mode = "numeric", length = 21)
+  benefits <- vector(mode = "numeric", length = 21)
+  
+  #initial values
+  stock[1] = int_stock
+  benefits[1] = p*(L+I[1]) - c*((L+I[1])^2/stock[1])  - alpha*effort*I[1]
+  
+  
+  #for loop
+  for (i in 2:(period+1))  
+    {
+    ### Stock dynamics
+    stock[i] = stock[i-1] + (r * stock[i-1]) - (r*(stock[i-1])^2)/K  - (L+I[i-1])
+    benefits[i] = p*(L + I[i]) - c*((L+I[i])^2/stock[i])  - alpha*effort*I[i]
+    
+  }
+  
+  t = seq(from = 0, period) 
+  pv = ((1/(1 + discount))^t) * benefits
+  npv = sum(pv)
+  
+  return(-npv)
+  
+}
+```
+
+
+```{r}
+## Use this options list for nloptr
+
+local_opts<-list("algorithm"="NLOPT_LN_COBYLA",xtol_rel=1e-15)
+options=list("algorithm"="NLOPT_LN_AUGLAG",xtol_rel=1e-15,maxeval=16000,"local_opts"=local_opts)
+
+period = 20
+
+output_enf = nloptr(x0=rep(1, times=21),
+                 eval_f=objective,
+                # eval_g_ineq = constraint,
+                 lb=rep(0, times=21),
+                 opts = options,
+                 int_stock=883400, discount=.05, p=2397, L=2568, c=1678, 
+                 r=.2, K=2265128, 
+                 period =20, effort= 1, alpha = .7)
+                 
+round(output_enf$solution, 3) #effort 
+-output_enf$objective #PVNB
+```
+
+
+
+```{r}
+#Making a table
+
+stock_a <- function(I, int_stock=883400, discount=.05, p=2397, L=113256, c=1678, r=.2, K=2265128, 
+                 period =20, effort= 1, alpha = .7) {
+  
+  stock <- vector(mode = "numeric", length = 21)
+  benefits <- vector(mode = "numeric", length = 21)
+  
+  #initial values
+  stock[1] = int_stock
+  benefits[1] = p*(L+I[1]) - c*((L+I[1])^2/stock[1])  - alpha*effort*I[1]
+  
+  
+  #for loop
+  for (i in 2:(period+1))  
+    {
+    ### Stock dynamics
+    stock[i] = stock[i-1] + (r * stock[i-1]) - (r*(stock[i-1])^2)/K  - (L+I[i-1])
+    benefits[i] = p*(L + I[i]) - c*((L+I[i])^2/stock[i])  - alpha*effort*I[i]
+    
+  }
+  
+  t = seq(from = 0, period) 
+  pv = ((1/(1 + discount))^t) * benefits
+  npv = sum(pv)
+  
+# This time we return a data frame with the variables we want in the table.  The value after the = indicates the column label.
+  
+  return(data.frame("Period"=t, "Present Value" =pv, "Stock"=stock, "Harvest" =I+L, "Illegal Fishing" = I))
+
+}
+
+# The next command is telling R to use the solution found above, choice, to evaluate the function stock and to round the values in the data frame to two places past the decimal point.  The second command says to make a table with these values. 
+
+tbl_enf=round(stock_a(output_enf$solution),3)      #  2 indicates rounding
+
+kable(tbl_enf)
+
+```
+
+## no enforcement 
+
+```{r}
+## Use this options list for nloptr
+
+local_opts<-list("algorithm"="NLOPT_LN_COBYLA",xtol_rel=1e-15)
+options=list("algorithm"="NLOPT_LN_AUGLAG",xtol_rel=1e-15,maxeval=16000,"local_opts"=local_opts)
+
+period = 20
+
+output_noenf = nloptr(x0=rep(1, times=21),
+                 eval_f=objective,
+                # eval_g_ineq = constraint,
+                 lb=rep(0, times=21),
+                 opts = options,
+                 int_stock=883400, discount=.05, p=2397, L=113256, c=1678, 
+                 r=.2, K=2265128, 
+                 period =20, effort= 0, alpha = 0)
+                 
+round(output_noenf$solution, 3) #effort 
+-output_noenf$objective #PVNB
+```
+
+
+
+```{r}
+#Making a table
+
+stock_a <- function(I, int_stock=883400, discount=.05, p=2397, L=113256, c=1678, r=.2, K=2265128, 
+                 period =20, effort= 0, alpha = 0) {
+  
+  stock <- vector(mode = "numeric", length = 21)
+  benefits <- vector(mode = "numeric", length = 21)
+  
+  #initial values
+  stock[1] = int_stock
+  benefits[1] = p*(L+I[1]) - c*((L+I[1])^2/stock[1])  - alpha*effort*I[1]
+  
+  
+  #for loop
+  for (i in 2:(period+1))  
+    {
+    ### Stock dynamics
+    stock[i] = stock[i-1] + (r * stock[i-1]) - (r*(stock[i-1])^2)/K  - (L+I[i-1])
+    benefits[i] = p*(L + I[i]) - c*((L+I[i])^2/stock[i])  - alpha*effort*I[i]
+    
+  }
+  
+  t = seq(from = 0, period) 
+  pv = ((1/(1 + discount))^t) * benefits
+  npv = sum(pv)
+  
+# This time we return a data frame with the variables we want in the table.  The value after the = indicates the column label.
+  
+  return(data.frame("Period"=t, "Present Value" =pv, "Stock"=stock, "Harvest" =I+L, "Illegal Fishing" = I))
+
+}
+
+# The next command is telling R to use the solution found above, choice, to evaluate the function stock and to round the values in the data frame to two places past the decimal point.  The second command says to make a table with these values. 
+
+tbl_noenf=round(stock_a(output_noenf$solution),3)      #  2 indicates rounding
+
+kable(tbl_noenf)
+
+```
+
+
+
+
+
+
+

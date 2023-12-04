@@ -72,7 +72,8 @@ objective <- function(I, int_stock, discount, p, L, c, ce, r, K, period, effort,
   
   #initial values
   stock[1] = int_stock
-  benefits[1] = p*(L+I[1]) - c*((L+I[1])^2/stock[1]) - ce*(effort) - alpha*effort*I[1]
+  I[1] = 
+  benefits[1] = p*(L+I[1]) - c*((L+I[1])^2/stock[1])  - alpha*effort*I[1]
   
   
   #for loop
@@ -80,8 +81,7 @@ objective <- function(I, int_stock, discount, p, L, c, ce, r, K, period, effort,
     {
     ### Stock dynamics
     stock[i] = stock[i-1] + (r * stock[i-1]) - (r*(stock[i-1])^2)/K  - (L+I[i-1] )
-    benefits[i] = p*(L + I[i]) - c*((L+I[i])^2/stock[i]) 
-    - ce*(effort)  - alpha*effort*I[i]
+    benefits[i] = p*(L + I[i]) - c*((L+I[i])^2/stock[i])  - alpha*effort*I[i]
     
   }
   
@@ -362,7 +362,7 @@ output_new = nloptr(x0=rep(1, times=76),
                  eval_g_ineq = constraint_new,
                  lb=rep(0, times=76),
                  opts = options,
-                 int_stock=8000, discount=.05, p=10, c=7, r=.2, K=2265128, 
+                 int_stock=.5, discount=.05, p=10, c=7, r=.798, K=1290000, 
                  period =75)
                  
 round(output_new$solution, 3) #effort 
