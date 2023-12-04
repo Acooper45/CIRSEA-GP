@@ -124,9 +124,8 @@ constraint <- function(I, int_stock, discount, p, L, c, ce, r, K, period, effort
   ### For-loop
   for (i in 2:(21)) {
     stock[i] = stock[i - 1] + r * stock[i - 1] * (1 - (stock[i - 1] / K)) - L - I[i - 1]
+      const[i] = (L+I[i]) - stock[i]
   } # End for-loop
-  
-    const[i] = (L+I[i]) - stock[i]
   
   return(const)
 }
