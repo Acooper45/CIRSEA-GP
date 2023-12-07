@@ -1,0 +1,513 @@
+---
+title: "Bioeconomic_model_draft"
+author: "Chloe Swick"
+date: "2023-12-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(nloptr)
+library(knitr)
+library(dplyr)
+library(ggplot2)
+```
+
+$L$= legal fishing (MT) 
+$int_stock$= initial biomass (MT) 
+$discount$= .05 
+$p$= price of landed fish (per MT) 
+$c$= cost of fishing (per MT) 
+$alpha$= cost of enforcement
+$et$= enforcement effort 
+$gamma$= enforcement effectivness 
+$K$= carrying capacity 
+$r$= intrinsic population growth rate 
+
+
+Illegal Fishing:
+$$
+I_{t} = \frac{(p-\gamma*e)X_t}{2*c} 
+$$
+
+Public Benefits:
+$$
+\pi_t = p*L_t-c * \frac{L_t^2}{X_1}-\alpha*e
+$$
+
+
+## Creating the Model 
+
+```{r}
+## Objective funtion
+
+objective <- function(L, int_stock, discount, period, p, c, g, alpha, et, K, r){
+  
+  ##vectors 
+  X <- numeric(length = 20)
+I <- numeric(length = 20)
+benefits <- numeric(length = 20)
+  
+  ##initial values 
+  X[1] = int_stock
+  I[1] = ((p-(g*et))*int_stock)/(2*c)  
+  
+  benefits[1] = (p*L[1])-(c*(L[1]^2/X[1]))-(alpha*et)
+  
+   print(paste(" X =", X[1], ", I =", I[1], ", benefits =", benefits[1])) 
+  
+  #for loop
+  for (i in 2:(period+1)) {
+     
+    X[i] = X[i-1] + (r*X[i-1]) - (r*(X[i-1])^2)/K - (L[i-1]+I[i-1])
+    
+    I[i] = ((p-(g*et))*X[i])/(2*c)
+    
+    benefits[i] = (p*L[i]) - (c*(L[i]^2/X[i])) - (alpha*et)
+   
+    print(paste("Step", i, ": X =", X[i], ", I =", I[i], ", benefits =", benefits[i])) 
+  }
+  
+  t = seq(from = 0, period)
+   pv = ((1/(1 + discount))^t) * benefits
+  npv = sum(pv)
+  
+  print(paste("L:", L))  # Print the value of L
+  print(paste("npv:", npv))  # Print the value of npv
+  
+  return(-npv)
+  
+}
+```
+
+
+```{r}
+##constraint that harvest can't be more than stock in any period
+
+constraint <- function(L, int_stock, discount, period, p, c, g, alpha, et, K, r){
+  
+  #Vectors 
+    X <- numeric(length = 20)
+    I <- numeric(length = 20)
+    const <- numeric(length = 20)
+  
+  ## initial states 
+  X[1] = int_stock 
+  I[1] = ((p-(g*et))*X[1])/(2*c)
+  const[1] = (L[1]+I[1]) - X[1]
+  
+  ## for loop for remaing values 
+  for (i in 2: (period+1)) {
+     X[i] = X[i-1] + (r*X[i-1]) - (r*X[i-1]^2)/K - (L[i-1]+I[i-1])
+     I[i] = ((p-(g*et))*X[i])/(2*c)
+     const[i] = (L[i]+I[i]) - X[i]
+    
+  }
+  
+  return(const)
+  
+}
+```
+
+
+Andrew note on picking parameters: increasing effort should result in illegal catch going down, stock going up, and benefits should be meaningfully affected (benefits should go up, because of stock affect, reducing costs)
+
+
+## Running Nlloptr
+
+```{r}
+## effort = .75 
+
+local_opts <- list("algorithm" = "NLOPT_LN_COBYLA", xtol_rel = 1e-15)
+options <- list("algorithm" = "NLOPT_LN_AUGLAG", xtol_rel = 1e-15, maxeval = 160000, "local_opts" = local_opts)
+
+period = 19
+
+## running nloptr 
+output_e_.75 = nloptr(x0=rep(10, times=20),
+                 eval_f=objective,
+                 eval_g_ineq = constraint,
+                 lb=rep(0, times=20),
+                 opts = options,
+                 int_stock= 883400, discount= .05, period= 19,
+                 p= 2397, c= 15000, g= 2375, alpha= 20000000, 
+                 et= .75, K= 2265128, r= .2)
+                 
+round(output_e_.75$solution, 3) #effort 
+-output_e_.75$objective #PVNB
+
+
+```
+
+```{r}
+## Effort = 1
+
+local_opts <- list("algorithm" = "NLOPT_LN_COBYLA", xtol_rel = 1e-15)
+options <- list("algorithm" = "NLOPT_LN_AUGLAG", xtol_rel = 1e-15, maxeval = 160000, "local_opts" = local_opts)
+
+period = 19
+
+## running nloptr 
+output_e_1 = nloptr(x0=rep(10, times=20),
+                 eval_f=objective,
+                 eval_g_ineq = constraint,
+                 lb=rep(0, times=20),
+                 opts = options,
+                 int_stock= 883400, discount= .05, period= 19,
+                 p= 2397, c= 15000, g= 2375, alpha= 20000000, 
+                 et= 1, K= 2265128, r= .2)
+                 
+round(output_e_1$solution, 3) #effort 
+-output_e_1$objective #PVNB
+
+
+```
+
+```{r}
+## effort = 0
+
+local_opts <- list("algorithm" = "NLOPT_LN_COBYLA", xtol_rel = 1e-15)
+options <- list("algorithm" = "NLOPT_LN_AUGLAG", xtol_rel = 1e-15, maxeval = 160000, "local_opts" = local_opts)
+
+period = 19
+
+## running nloptr 
+output_e_0 = nloptr(x0=rep(10, times=20),
+                 eval_f=objective,
+                 eval_g_ineq = constraint,
+                 lb=rep(0, times=20),
+                 opts = options,
+                 int_stock= 883400, discount= .05, period= 19,
+                 p= 2397, c= 15000, g= 2375, alpha= 20000000, 
+                 et= 0, K= 2265128, r= .2)
+                 
+round(output_e_0$solution, 3) #effort 
+-output_e_0$objective #PVNB
+
+
+```
+
+
+```{r}
+## effort = .5 
+
+local_opts <- list("algorithm" = "NLOPT_LN_COBYLA", xtol_rel = 1e-15)
+options <- list("algorithm" = "NLOPT_LN_AUGLAG", xtol_rel = 1e-15, maxeval = 160000, "local_opts" = local_opts)
+
+period = 19
+
+## running nloptr 
+output_e_.5 = nloptr(x0=rep(10, times=20),
+                 eval_f=objective,
+                 eval_g_ineq = constraint,
+                 lb=rep(0, times=20),
+                 opts = options,
+                 int_stock= 883400, discount= .05, period= 19,
+                 p= 2397, c= 15000, g= 2375, alpha= 20000000, 
+                 et= .5, K= 2265128, r= .2)
+                 
+round(output_e_.5$solution, 3) #effort 
+-output_e_.5$objective #PVNB
+
+
+```
+
+## Making Tables
+
+```{r}
+#Making a table for e = 1
+
+stock_a <- function(L, int_stock= 883400, discount= .05, period= 19,
+                 p= 2397, c= 15000, g= 2375, alpha= 20000000, 
+                 et= 1, K= 2265128, r= .2) {
+  
+  ##vectors 
+  X <- numeric(length = 20)
+I <- numeric(length = 20)
+benefits <- numeric(length = 20)
+  
+  ##initial values 
+  X[1] = int_stock
+  I[1] = ((p-(g*et))*int_stock)/(2*c)  
+  
+  benefits[1] = (p*L[1])-(c*(L[1]^2/X[1]))-(alpha*et)
+  
+   print(paste(" X =", X[1], ", I =", I[1], ", benefits =", benefits[1])) 
+  
+  #for loop
+  for (i in 2:(period+1)) {
+     
+    X[i] = X[i-1] + (r*X[i-1]) - (r*(X[i-1])^2)/K - (L[i-1]+I[i-1])
+    
+    I[i] = ((p-(g*et))*X[i])/(2*c)
+    
+    benefits[i] = (p*L[i]) - (c*(L[i]^2/X[i])) - (alpha*et)
+   
+    print(paste("Step", i, ": X =", X[i], ", I =", I[i], ", benefits =", benefits[i])) 
+  }
+  
+  t = seq(from = 0, period)
+   pv = ((1/(1 + discount))^t) * benefits
+  npv = sum(pv)
+  
+  print(paste("L:", L))  # Print the value of L
+  print(paste("npv:", npv))  # Print the value of npv
+  
+# This time we return a data frame with the variables we want in the table.  The value after the = indicates the column label.
+  
+  return(data.frame("Year"=t, "Present Value" =pv, "Stock"=X, "Harvest" =I+L, "Illegal Fishing" = I, "legal Harvest" = L))
+
+}
+
+# The next command is telling R to use the solution found above, choice, to evaluate the function stock and to round the values in the data frame to two places past the decimal point.  The second command says to make a table with these values. 
+
+e_1=round(stock_a(output_e_1$solution),3)      #  2 indicates rounding
+
+kable(e_1)
+```
+
+
+```{r}
+#Making a table for e = 0
+
+stock_a <- function(L, int_stock= 883400, discount= .05, period= 19,
+                 p= 2397, c= 15000, g= 2375, alpha= 20000000, 
+                 et= .0, K= 2265128, r= .2) {
+  
+  ##vectors 
+  X <- numeric(length = 20)
+I <- numeric(length = 20)
+benefits <- numeric(length = 20)
+  
+  ##initial values 
+  X[1] = int_stock
+  I[1] = ((p-(g*et))*int_stock)/(2*c)  
+  
+  benefits[1] = (p*L[1])-(c*(L[1]^2/X[1]))-(alpha*et)
+  
+   print(paste(" X =", X[1], ", I =", I[1], ", benefits =", benefits[1])) 
+  
+  #for loop
+  for (i in 2:(period+1)) {
+     
+    X[i] = X[i-1] + (r*X[i-1]) - (r*(X[i-1])^2)/K - (L[i-1]+I[i-1])
+    
+    I[i] = ((p-(g*et))*X[i])/(2*c)
+    
+    benefits[i] = (p*L[i]) - (c*(L[i]^2/X[i])) - (alpha*et)
+   
+    print(paste("Step", i, ": X =", X[i], ", I =", I[i], ", benefits =", benefits[i])) 
+  }
+  
+  t = seq(from = 0, period)
+   pv = ((1/(1 + discount))^t) * benefits
+  npv = sum(pv)
+  
+  print(paste("L:", L))  # Print the value of L
+  print(paste("npv:", npv))  # Print the value of npv
+  
+# This time we return a data frame with the variables we want in the table.  The value after the = indicates the column label.
+  
+  return(data.frame("Year"=t, "Present Value" =pv, "Stock"=X, "Harvest" =I+L, "Illegal Fishing" = I, "legal Harvest" = L))
+
+}
+
+# The next command is telling R to use the solution found above, choice, to evaluate the function stock and to round the values in the data frame to two places past the decimal point.  The second command says to make a table with these values. 
+
+e_0=round(stock_a(output_e_0$solution),3)      #  2 indicates rounding
+
+kable(e_0)
+
+
+```
+
+
+```{r}
+#Making a table for e = .5 
+
+stock_a <- function(L, int_stock= 883400, discount= .05, period= 19,
+                 p= 2397, c= 15000, g= 2375, alpha= 20000000, 
+                 et= .5, K= 2265128, r= .2) {
+  
+  ##vectors 
+  X <- numeric(length = 20)
+I <- numeric(length = 20)
+benefits <- numeric(length = 20)
+  
+  ##initial values 
+  X[1] = int_stock
+  I[1] = ((p-(g*et))*int_stock)/(2*c)  
+  
+  benefits[1] = (p*L[1])-(c*(L[1]^2/X[1]))-(alpha*et)
+  
+   print(paste(" X =", X[1], ", I =", I[1], ", benefits =", benefits[1])) 
+  
+  #for loop
+  for (i in 2:(period+1)) {
+     
+    X[i] = X[i-1] + (r*X[i-1]) - (r*(X[i-1])^2)/K - (L[i-1]+I[i-1])
+    
+    I[i] = ((p-(g*et))*X[i])/(2*c)
+    
+    benefits[i] = (p*L[i]) - (c*(L[i]^2/X[i])) - (alpha*et)
+   
+    print(paste("Step", i, ": X =", X[i], ", I =", I[i], ", benefits =", benefits[i])) 
+  }
+  
+  t = seq(from = 0, period)
+   pv = ((1/(1 + discount))^t) * benefits
+  npv = sum(pv)
+  
+  print(paste("L:", L))  # Print the value of L
+  print(paste("npv:", npv))  # Print the value of npv
+  
+# This time we return a data frame with the variables we want in the table.  The value after the = indicates the column label.
+  
+  return(data.frame("Year"=t, "Present Value" =pv, "Stock"=X, "Harvest" =I+L, "Illegal Fishing" = I, "legal Harvest" = L))
+
+}
+
+# The next command is telling R to use the solution found above, choice, to evaluate the function stock and to round the values in the data frame to two places past the decimal point.  The second command says to make a table with these values. 
+
+e_.5=round(stock_a(output_e_.5$solution),3)      #  2 indicates rounding
+
+kable(e_.5)
+
+
+```
+
+
+```{r}
+#Making a table for e=. 75 
+
+stock_a <- function(L, int_stock= 883400, discount= .05, period= 19,
+                 p= 2397, c= 15000, g= 2375, alpha= 20000000, 
+                 et= .75, K= 2265128, r= .2) {
+  
+  ##vectors 
+  X <- numeric(length = 20)
+I <- numeric(length = 20)
+benefits <- numeric(length = 20)
+  
+  ##initial values 
+  X[1] = int_stock
+  I[1] = ((p-(g*et))*int_stock)/(2*c)  
+  
+  benefits[1] = (p*L[1])-(c*(L[1]^2/X[1]))-(alpha*et)
+  
+   print(paste(" X =", X[1], ", I =", I[1], ", benefits =", benefits[1])) 
+  
+  #for loop
+  for (i in 2:(period+1)) {
+     
+    X[i] = X[i-1] + (r*X[i-1]) - (r*(X[i-1])^2)/K - (L[i-1]+I[i-1])
+    
+    I[i] = ((p-(g*et))*X[i])/(2*c)
+    
+    benefits[i] = (p*L[i]) - (c*(L[i]^2/X[i])) - (alpha*et)
+   
+    print(paste("Step", i, ": X =", X[i], ", I =", I[i], ", benefits =", benefits[i])) 
+  }
+  
+  t = seq(from = 0, period)
+   pv = ((1/(1 + discount))^t) * benefits
+  npv = sum(pv)
+  
+  print(paste("L:", L))  # Print the value of L
+  print(paste("npv:", npv))  # Print the value of npv
+  
+# This time we return a data frame with the variables we want in the table.  The value after the = indicates the column label.
+  
+  return(data.frame("Year"=t, "Present Value" =pv, "Stock"=X, "Harvest" =I+L, "Illegal Fishing" = I, "legal Harvest" = L))
+
+}
+
+# The next command is telling R to use the solution found above, choice, to evaluate the function stock and to round the values in the data frame to two places past the decimal point.  The second command says to make a table with these values. 
+
+e_.75=round(stock_a(output_e_.75$solution),3)      #  2 indicates rounding
+
+kable(e_.75)
+
+
+```
+
+
+## Putting all the data together 
+
+```{r}
+data_all <- data.frame(e_.75$Year, e_0$Stock, e_0$Illegal.Fishing, e_0$legal.Harvest, e_.5$Stock, e_.5$Illegal.Fishing, e_.5$legal.Harvest, e_.75$Stock, e_.75$Illegal.Fishing, e_.75$legal.Harvest, e_1$Stock, e_1$Illegal.Fishing, e_1$legal.Harvest)
+
+col_names <- c("year", "stock_0", "I_0", "L_0", "stock_.5", "I_.5", "L_.5", "stock_.75", "I_.75", "L_.75", "stock_1", "I_1", "L_1")
+
+colnames(data_all) <- col_names
+```
+
+
+
+## Figures 
+
+
+```{r}
+ggplot(data = e_.75, aes(x= Year, y = Illegal.Fishing)) +
+  geom_line(color = 'seagreen1')+
+  geom_line(aes(y=legal.Harvest), color="turquoise1") +
+  geom_line(aes(y=Harvest), color="orchid1") +
+   labs(title = "Harvest With 75% Enforcement Level",
+       x = "Year",
+       y = "Biomass (MT)") +
+  theme_minimal()
+
+```
+
+
+```{r}
+ggplot(data = e_1, aes(x= Year, y = Stock)) +
+  geom_line(color = 'blue')+
+   labs(title = "Stock with 100% Enforcement Level",
+       x = "Year",
+       y = "Biomass (MT)") +
+  theme_minimal()
+
+```
+
+
+
+```{r}
+## plot of illegal fishing w/ different effort 
+ggplot(data = data_all, aes(x= year)) +
+  geom_line(aes(y = I_0, color = 'I_0') )+
+  geom_line(aes(y = I_.5, color = "I_.5") )+
+  geom_line(aes(y= I_.75, color = "I_.75") )+
+  geom_line(aes(y= I_1, color = "I_1") ) +
+  scale_color_manual(values = c(I_0 = "blue", I_.5 = "green", I_.75 = "purple", I_1 = "yellow"), labels = c(I_0 = "0%", I_.5 = "50%", I_.75 = "75%", I_1 = "100%")) +
+   labs(title = "Illegal Fishing with varying levels of enforcement",
+       x = "Year",
+       y = "Biomass (MT)") +
+  theme_minimal() 
+
+```
+
+
+```{r}
+## plot of stock with different effort 
+ggplot(data = data_all, aes(x= year)) +
+  geom_line(aes(y = stock_0, color = 'stock_0') )+
+  geom_line(aes(y = stock_.5, color = "stock_.5") )+
+  geom_line(aes(y= stock_.75, color = "stock_.75") )+
+  geom_line(aes(y= stock_1, color = "stock_1") ) +
+  scale_color_manual(values = c(stock_0 = "blue", stock_.5 = "green", stock_.75 = "purple", stock_1 = "yellow"), labels = c(stock_0 = "0%", stock_.5 = "50%", stock_.75 = "75%", stock_1 = "100%")) +
+   labs(title = "Yellowfin Tuna stock under varying levels of enforcement",
+       x = "Year",
+       y = "Biomass (MT)") +
+  theme_minimal() 
+
+```
+
+
+
+
+
+
+
