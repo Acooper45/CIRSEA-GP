@@ -15,26 +15,41 @@ library(dplyr)
 library(ggplot2)
 ```
 
-$L$= legal fishing (MT) 
-$int_stock$= initial biomass (MT) 
-$discount$= .05 
-$p$= price of landed fish (per MT) 
-$c$= cost of fishing (per MT) 
-$alpha$= cost of enforcement
-$et$= enforcement effort 
-$gamma$= enforcement effectivness 
-$K$= carrying capacity 
-$r$= intrinsic population growth rate 
+$L$ = legal fishing (MT)
+
+*int stock* = initial biomass (MT)
+
+$discount (\delta)$ = .05
+
+$p$ = price of landed fish (per MT)
+
+$c$ = cost of fishing (per MT)
+
+$\alpha$ = cost of enforcement
+
+$e_{t}$ = enforcement effort
+
+$\gamma$= enforcement effectiveness
+
+$K$ = carrying capacity
+
+$r$ = intrinsic population growth rate
 
 
-Illegal Fishing:
+
+**Illegal Fishing**
 $$
 I_{t} = \frac{(p-\gamma*e)X_t}{2*c} 
 $$
 
-Public Benefits:
+**Public Benefits**
 $$
-\pi_t = p*L_t-c * \frac{L_t^2}{X_1}-\alpha*e
+\pi_t = p*L_t-c * \frac{L_t^2}{X_t}-\alpha*e
+$$
+
+**Stock Equation**
+$$
+X_{t} = X_{t - 1} + r*X_{t - 1} - \frac{r *(X_{t - 1})^2}{K} -(L_{t-1} +I_{t-1})
 $$
 
 
