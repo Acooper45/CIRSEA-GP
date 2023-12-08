@@ -132,7 +132,7 @@ Andrew note on picking parameters: increasing effort should result in illegal ca
 
 ## Running Nlloptr
 
-```{r}
+```{r, warning = FALSE, results = FALSE}
 ## effort = .75 
 
 local_opts <- list("algorithm" = "NLOPT_LN_COBYLA", xtol_rel = 1e-15)
@@ -156,7 +156,7 @@ round(output_e_.75$solution, 3) #effort
 
 ```
 
-```{r}
+```{r, warning = FALSE, results = FALSE}
 ## Effort = 1
 
 local_opts <- list("algorithm" = "NLOPT_LN_COBYLA", xtol_rel = 1e-15)
@@ -180,7 +180,7 @@ round(output_e_1$solution, 3) #effort
 
 ```
 
-```{r}
+```{r, warning = FALSE, results = FALSE}
 ## effort = 0
 
 local_opts <- list("algorithm" = "NLOPT_LN_COBYLA", xtol_rel = 1e-15)
@@ -205,7 +205,7 @@ round(output_e_0$solution, 3) #effort
 ```
 
 
-```{r}
+```{r, warning = FALSE, results = FALSE}
 ## effort = .5 
 
 local_opts <- list("algorithm" = "NLOPT_LN_COBYLA", xtol_rel = 1e-15)
@@ -231,7 +231,7 @@ round(output_e_.5$solution, 3) #effort
 
 ## Making Tables
 
-```{r}
+```{r, reuslts = FALSE}
 #Making a table for e = 1
 
 stock_a <- function(L, int_stock= 883400, discount= .05, period= 19,
@@ -279,12 +279,15 @@ benefits <- numeric(length = 20)
 # The next command is telling R to use the solution found above, choice, to evaluate the function stock and to round the values in the data frame to two places past the decimal point.  The second command says to make a table with these values. 
 
 e_1=round(stock_a(output_e_1$solution),3)      #  2 indicates rounding
-
-kable(e_1)
 ```
 
 
 ```{r}
+kable(e_1)
+```
+
+
+```{r, reuslts = FALSE}
 #Making a table for e = 0
 
 stock_a <- function(L, int_stock= 883400, discount= .05, period= 19,
@@ -332,14 +335,15 @@ benefits <- numeric(length = 20)
 # The next command is telling R to use the solution found above, choice, to evaluate the function stock and to round the values in the data frame to two places past the decimal point.  The second command says to make a table with these values. 
 
 e_0=round(stock_a(output_e_0$solution),3)      #  2 indicates rounding
-
-kable(e_0)
-
-
 ```
 
 
 ```{r}
+kable(e_0)
+```
+
+
+```{r, reuslts = FALSE}
 #Making a table for e = .5 
 
 stock_a <- function(L, int_stock= 883400, discount= .05, period= 19,
@@ -387,14 +391,15 @@ benefits <- numeric(length = 20)
 # The next command is telling R to use the solution found above, choice, to evaluate the function stock and to round the values in the data frame to two places past the decimal point.  The second command says to make a table with these values. 
 
 e_.5=round(stock_a(output_e_.5$solution),3)      #  2 indicates rounding
-
-kable(e_.5)
-
-
 ```
 
 
 ```{r}
+kable(e_.5)
+```
+
+
+```{r, reuslts = FALSE}
 #Making a table for e=. 75 
 
 stock_a <- function(L, int_stock= 883400, discount= .05, period= 19,
@@ -442,10 +447,11 @@ benefits <- numeric(length = 20)
 # The next command is telling R to use the solution found above, choice, to evaluate the function stock and to round the values in the data frame to two places past the decimal point.  The second command says to make a table with these values. 
 
 e_.75=round(stock_a(output_e_.75$solution),3)      #  2 indicates rounding
+```
 
+
+```{r}
 kable(e_.75)
-
-
 ```
 
 
