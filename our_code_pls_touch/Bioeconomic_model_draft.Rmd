@@ -77,6 +77,11 @@ benefits <- numeric(length = 20)
   for (i in 2:(period+1)) {
      
     X[i] = X[i-1] + (r*X[i-1]) - (r*(X[i-1])^2)/K - (L[i-1]+I[i-1])
+    # From Nate's OH
+    # Quota Q = f_bar * X_{t}; f_bar is chosen in this equation to be some percentage of X
+    # Maximization fisher income; f --> pfx - f^2 /x - gamma * e *(f - f_bar); we choose f for a given level, but fishing beyond the optimal level we get hit with fines, which the fishers won't like (simulate f_bar to be 0.1 to 0.5). everything is proportional, doesn't matter that it's a decimal.
+    # harvest H = f(x); quota = f_bar(x). quota cancels out, so we can look at f - f_bar
+    # Social planner; max e, and maybe a choice where you choose the quota (constant harvest control rule)
     
     I[i] = ((p-(g*et))*X[i])/(2*c)
     
